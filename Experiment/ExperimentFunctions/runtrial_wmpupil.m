@@ -279,12 +279,12 @@ while true
             invalid   = 1;
             break
         elseif ismember(keyName,{'LeftArrow','DownArrow'}) && ...
-               ismember(keyName,{'match_stim','respwin'})
+               ismember(currentphase,{'match_stim','respwin'})
             response  = -1 == stimparams(7);
             rt        = round( (timestamp - start_rt) * 1000 );
             break
         elseif ismember(keyName,{'RightArrow','UpArrow'}) && ...
-               ismember(keyName,{'match_stim','respwin'})
+               ismember(currentphase,{'match_stim','respwin'})
             response  = 1 == stimparams(7);
             rt        = round( (timestamp - start_rt) * 1000 );
             break

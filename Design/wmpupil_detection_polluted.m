@@ -1,31 +1,7 @@
-clear all; close all; clc; sca;
+clear all; close all; clc;
 %-------------------------------------------------------------------------%
 % Working memory X pupil
 %-------------------------------------------------------------------------%
-% This experiment consists of two conditions: 'location' and 'orientation'.
-% The tasks are 2AFC match-to-sample discrimination tasks.
-% Difficulty of the trials are controlled by 2 interleaved Quest
-% staircases, at 75% correct.
-%
-% The background of the stimulus screen consists of a black-and-white
-% annulus, with a luminance gradient in between and a blue fixation point 
-% in the middle. Subjects are instructed to fixate this point during the 
-% entire trial.
-%
-% In 'location' subjects have to remember the location of a small gabor,
-% that will be briefly presented on either the white or the darkside. After
-% a short interval another gabor is shown. Subjects have to indicate
-% whether the second stimulus was higher or lower in the screen.
-%
-% In 'orientation' subjects have to remember the orientation of
-% peripherally presented gabor. After a short interval a second gabor will
-% be presented at fixation. Subjects have to indicate whether the second
-% gabor was rotated clockwise or counterclockwise, with respect to the
-% first gabor.
-%
-% All data is saved in the eyelink data file. Additionally, a matlab data
-% array is saved.
-%
 % Format data array
 %    1. blocknumber
 %    2. trialnumber
@@ -35,22 +11,22 @@ clear all; close all; clc; sca;
 %    6. orientation of stimulus 1
 %    7. theta of stimulus 2
 %    8. orientation of stimulus 2
-%    9. desired response (-1: lower/ccw, 1 = higher/cw)
+%    9. desired response
 %   10. intensity (difference between theta1 and theta2 or between ori1 and ori2)
 %   11. response
 %   12. response time
 %   13. which staircase was used?
 %   14. threshold estimate
 %   15. standard deviation of estimate
-%   16. valid (logical)
+%   16. invalid (logical)
+
+% dummymode ( = use mouse instead of eye-tracker)
+dummymode = true;
 
 
 
 
 %%  Initialize experiment
-% dummymode (= use mouse instead of eye-tracker)
-dummymode = true;
-
 % folder with some extra helper functions
 addpath([pwd filesep 'LocalToolbox']);
 addpath([pwd filesep 'ExperimentFunctions']);
@@ -78,7 +54,7 @@ fileprfx  = [ initials '_'  condition ];
 
 if sessionnumber > 1
     try
-        load( [ matdir filesep initials '_'  condition '.mat' ] );
+        load( [ matdir filesep initials '_'  condition num2filestr(sessionnumber-1) '.mat' ] );
         fprintf('\nSuccessfully imported data from session %d!\n',sessionnumber-1);
     catch
         error('Failed to load data from session %d', sessionnumber-1);
@@ -94,7 +70,7 @@ end
 %%  Parameters
 % number of trials
 p.n.thresholds    = 2;  % number of thresholds
-p.n.trialsblock   = 16; % should be multiple of factorial block design (see below)
+p.n.trialsblock   = 12; % should be multiple of factorial block design (see below)
 p.n.trialsthresh  = 48; % should be multiple of number of trials per block
 p.n.blocks        = p.n.thresholds * p.n.trialsthresh / p.n.trialsblock;
 
@@ -104,7 +80,7 @@ p.block.stimside = [1 2]; % at which side should the stimulus be presented?
 p.block.whichq   = 1:p.n.thresholds; % which quest staircase to use on trial?
 
 % screen
-p.scr.number  = max(Screen('Screens'));
+p.scr.number  = 1;  % max(Screen('Screens'));
 p.scr.distscr = 70;              % distance to screen (cm)
 p.scr.sizecm  = [ 50.67 33.89 ]; % width and height of screen (cm)
 jnk           = Screen('Resolution',p.scr.number);
@@ -123,62 +99,50 @@ p.color.blue  = [ p.color.black  p.color.black  p.color.white ];
 % background
 p.background.rOuter   = 15; % size outer annulus (dva)
 p.background.rInner   = 5;  % size inner annulus (dva)
-p.background.gradient = 5;  % size gradient      (dva)
+p.background.gradient = 4;  % size gradient      (dva)
 
 % stimulus
-p.stim.r          = 2;    % radius, (dva)
+p.stim.r          = 1.5;  % radius, (dva)
 p.stim.ori        = 0;    % initial orientation
-p.stim.cycles     = 4;    % number of cycles (freq = cycles/radius)
+p.stim.cycles     = 5;    % number of cycles (freq = cycles/radius)
 p.stim.phase      = 0;    % phase
 p.stim.contrast   = 1;    % contrast
 p.stim.propmask   = 0.25; % proportion of outer edge where mask decays to 0
 p.stim.eccen      = ( p.background.rOuter-p.background.rInner )/2 + p.background.rInner;
-
-% possible radial coordinate for stimulus placement, first row: left vf. 
-% vertical axis is ommited by [jnklimit] radians
-jnkstep           = (2*pi/360)/2;
-jnklimit          = pi/6;
-p.stim.thetarange = [ 0.5*pi+jnklimit:jnkstep:1.5*pi-jnklimit; ... 
-                      0.5*pi-jnklimit:-jnkstep:jnkstep 2*pi:-jnkstep:1.5*pi+jnklimit ];
-
-% possible orientation for stimulus placement
-% horizontal and vertical axis are ommited by [jnklimit] degrees
-jnkstep           = 0.5;
-jnklimit          = 15;
-p.stim.orirange   = [ jnklimit:jnkstep:90-jnklimit 90+jnklimit:jnkstep:180-jnklimit ];
+p.stim.thetarange = [ 10*pi/16:(2*pi/360)/2:15*pi/16  ...  % possible theta for stimulus placement
+                      17*pi/16:(2*pi/360)/2:22*pi/16; ... % horizontal and vertical axes are omitted
+                         pi/16:(2*pi/360)/2: 6*pi/16  ...  % first row is left field, second row right
+                      26*pi/16:(2*pi/360)/2:31*pi/16 ]; 
 
 % fixation
-p.fix.dOuter = 0.7;  % diameter outer dot (dva)
-p.fix.dInner = 0.25; % diameter inner dot (dva)
-p.fix.rROI   = 5;    % radius of ROI around fixation (dva)
- 
+p.fix.dOuter = 0.75; % diameter outer dot, (dva)
+p.fix.dInner = 0.25; % diameter inner dot, (dva)
+p.fix.rROI   = 2.5;  % radius of ROI around fixation (dva)
+
 % timing
-p.time.adaptation = 1.5;  % initial adaptation (secs)
-p.time.adapt_std  = 0.25; % standard deviation of adaptation (secs)
-p.time.adapt_min  = 1;    % standard deviation of adaptation (secs)
-p.time.adapt_max  = 2;    % standard deviation of adaptation (secs)
-p.time.stimulus   = 0.1;  % stimulus duration (secs)
-p.time.wmdelay    = 3;    % working memory delay (secs)
+p.time.adaptation = 2;   % initial adaptation, secs 
+p.time.stimulus   = 0.1; % stimulus duration, secs
+p.time.wmdelay    = 3;   % working memory delay, secs
 
 % text displays
-p.text.invalid   = sprintf(['Invalid gaze position detected.\n\n' ...
-                            'press [space] to continue']);
-p.text.abort     = sprintf( 'Experiment aborted');
-p.text.saving    = sprintf( 'Saving block data');
-p.text.nextblock = sprintf(['Continue to next block?\n\n' ...
-                            'press [space] to continue']);
-p.text.theend    = sprintf( 'The end.\n\nThanks for your participation');
+p.text.invalid   = sprintf([ 'Invalid gaze position detected.\n\n' ...
+                             'press [space] to continue']);
+p.text.abort     = sprintf(  'Experiment aborted');
+p.text.saving    = sprintf(  'Saving block data');
+p.text.nextblock = sprintf([ 'Continue to next block?\n\n' ...
+                             'press [space] to continue']);
+p.text.theend    = sprintf(  'The end.\n\nThanks for your participation');
 
 % quest parameters
-p.maxdiffSWM            = 30;       % max orientation difference SWM (angular degrees)
-p.maxdiffVWM            = 30;       % max orientation difference VWM (angular degrees)
+p.maxdiffSWM            = 20;       % max orientation difference SWM (angular degrees)
+p.maxdiffVWM            = 20;       % max orientation difference VWM (angular degrees)
 p.mindiffSWM            = 0.5;      % min orientation difference SWM (angular degrees)
 p.mindiffVWM            = 0.2;      % min orientation difference VWM (angular degrees)
 
 p.quest.guessSWM        = log10(10); % initial guess SWM threshold (angular degrees in log scale)
-p.quest.priorstdSWM     = log10(7);  % sd of initial guess SWM threshold(angular degrees in log scale)
-p.quest.guessVWM        = log10(15); % initial guess orientation threshold (angular degrees in log scale)
-p.quest.priorstdVWM     = log10(8);  % sd of initial guess orientation threshold(angular degrees in log scale)
+p.quest.priorstdSWM     = log10(6);  % sd of initial guess SWM threshold(angular degrees in log scale)
+p.quest.guessVWM        = log10(10); % initial guess orientation threshold (angular degrees in log scale)
+p.quest.priorstdVWM     = log10(6);  % sd of initial guess orientation threshold(angular degrees in log scale)
 p.quest.beta            = 3.5;       % controls the steepness of the psychometric function
 p.quest.delta           = 0.05;      % fraction of trials on which the observer presses blindly
 p.quest.gamma           = 0.5;       % fraction of trials that will generate response 1 when intensity == -inf
@@ -213,7 +177,7 @@ try
     % open screen
     AssertOpenGL;
     commandwindow;
-    Screen('Preference', 'SkipSyncTests', 0);
+    Screen('Preference', 'SkipSyncTests', 4);
     w  = Screen('OpenWindow', p.scr.number, p.color.grey);
     
     % set priority
@@ -247,12 +211,8 @@ try
     %%  Textures: background
     % background
     background         = [ zeros( p.scr.wrect(4), p.scr.cx ) ones( p.scr.wrect(4), p.scr.cx ) ] .* p.color.white;
-    
-    % the next lines can be used to add a BW gradient to the backgroud. We
-    % decided it was be unnecessary for the current experiment...
-    % backgroundGradient = repmat( linspace( p.color.black, p.color.white, p.background.gradient*p.scr.pixdeg ), p.scr.wrect(4), 1 );
-    % background( :, p.scr.cx-p.background.gradient*p.scr.pixdeg/2:p.scr.cx+p.background.gradient*p.scr.pixdeg/2-1 ) = backgroundGradient;
-    
+    backgroundGradient = repmat( linspace( p.color.black, p.color.white, p.background.gradient*p.scr.pixdeg ), p.scr.wrect(4), 1 );
+    background( :, p.scr.cx-p.background.gradient*p.scr.pixdeg/2:p.scr.cx+p.background.gradient*p.scr.pixdeg/2-1 ) = backgroundGradient;
     tx.backgroundBW    = Screen('MakeTexture', w, background);
     tx.backgroundWB    = Screen('MakeTexture', w, fliplr(background));
     
@@ -329,7 +289,7 @@ try
         %% Eyelink initialization
         if ~dummymode
             el = EyelinkInitDefaults(w);
-            el = initEyelink_JF(el, p.scr.wrect, p.color.grey, p.color.blue, true, [filename '.edf']);
+            initEyelink_JF(el, p.scr.wrect, p.color.grey, p.color.black, false, [filename '.edf']);
             EyelinkDoTrackerSetup(el);
             KbReleaseWait;
         else
@@ -356,42 +316,46 @@ try
             switch conditionfull
                 case 'location'
                     % locations
-                    thetadiff  = min( 10^QuestQuantile( q( whichq ) ), p.maxdiffSWM );
-                    thetadiff  = deg2rad( max( thetadiff, p.mindiffSWM ) );
-                    theta1     = randsample( p.stim.thetarange(vf,:), 1 );
-                    theta2     = mod(theta1 + thetadiff * ( desresp* ( (vf-1)*2-1 ) ), 2*pi);
-                    while ( vf==1 && ( theta2<p.stim.thetarange(vf,1) || theta2>p.stim.thetarange(vf,end) ) ) || ...
-                          ( vf==2 && ( theta2<p.stim.thetarange(vf,1) || theta2<p.stim.thetarange(vf,end) ) )  
-                        theta1 = randsample( p.stim.thetarange(vf,:), 1 );
-                        theta2 = mod(theta1 + thetadiff * ( desresp* ( (vf-1)*2-1 ) ), 2*pi);
+                    theta1 = randsample( p.stim.thetarange(vf,:), 1 );
+                    if desresp == 1
+                        thetadiff = min( 10^QuestQuantile( q( whichq ) ), p.maxdiffSWM );
+                        thetadiff = deg2rad( max( thetadiff, p.mindiffSWM ) );
+                        direction = randsample([-1 1],1);
+                        theta2    = theta1 + thetadiff * desresp;
+                        if ( vf==1 && ( ( theta2<0.5*pi+pi/16 ) || ( theta2>1.5*pi-pi/16 ) ) ) || ...
+                           ( vf==2 && ( ( theta2<0 ) || ( theta2>0.5*pi-pi/16 && theta2<1.5*pi+pi/16 ) || ( theta2 > 2*pi-pi/16 ) ) )
+                            direction = direction * -1;
+                            theta2    = theta1 + thetadiff * direction;
+                        end
+                    else
+                        theta2     = theta1;
+                        direction  = 0;
                     end
-
+                        
                     % orientations
-                    oridiff  = randsample( p.mindiffVWM:p.mindiffVWM:p.maxdiffVWM, 1) * round(rand(1))*2-1;
-                    ori1     = randsample( p.stim.orirange, 1 );
-                    ori2     = mod( ori1 + oridiff, 180 );
-                    while ori2<min(p.stim.orirange) || ori2>max(p.stim.orirange)
-                        ori1 = randsample( p.stim.orirange, 1 );
-                        ori2 = mod( ori1 + oridiff, 180 );
-                    end
-                    
+                    ori1    = rad2deg( randsample( p.stim.thetarange(1,:), 1 ) );
+                    oridiff = randsample( [-p.maxdiffVWM:-p.mindiffVWM p.mindiffVWM:p.maxdiffVWM], 1);
+                    ori2    = ori1 + oridiff;
                     
                     
                 case 'orientation'
                     % locations
-                    theta1 = randsample( p.stim.thetarange(vf,:), 1 );
-                    theta2 = 0; % not used in orientation change detection
+                    theta1    = randsample( p.stim.thetarange(vf,:), 1 );
+                    thetadiff = 0; % not used in orientation change detection
+                    theta2    = 0; % not used in orientation change detection
                     
                     % orientations
-                    oridiff = min( 10^QuestQuantile( q(whichq) ), p.maxdiffVWM );
-                    oridiff = max( oridiff, p.mindiffSWM );
-                    ori1    = randsample( p.stim.orirange, 1 );
-                    ori2    = mod( ori1 + oridiff * desresp, 180 );
-                    while ori2<min(p.stim.orirange) || ori2>max(p.stim.orirange)
-                        ori1    = randsample( p.stim.orirange, 1 );
-                        ori2    = mod( ori1 + oridiff * desresp, 180 );
+                    ori1 = rad2deg( randsample( p.stim.thetarange(:), 1 ) );
+                    if desresp == 1
+                        oridiff   = min( 10^QuestQuantile( q(whichq) ), p.maxdiffVWM );
+                        oridiff   = max( oridiff, p.mindiffSWM );
+                        direction = randsample([-1 1],1);
+                        ori2      = ori1 + oridiff * direction;
+                    else
+                        ori2      = ori1;
+                        oridiff   = 0;
+                        direction = 0;
                     end
-
             end
             stimparams = [vf bwlayout theta1 ori1 theta2 ori2 desresp];
 
@@ -404,46 +368,37 @@ try
                 block     = [ block; block(itrial,:) ];
                 tx.stim1  = [ tx.stim1 tx.stim1(itrial) ];
                 tx.stim2  = [ tx.stim2 tx.stim2(itrial) ];
-                intensity = -999;
+                intensity = 999;
                 
             else % yes, update staircase
                 switch conditionfull
                     case 'location'
-                        if vf == 2 && ( theta1<0.5*pi && theta2>1.5*pi ) || ( theta1>1.5*pi && theta2<0.5*pi )
-                            intensity = rad2deg( mod( min(theta1,theta2) - max(theta1,theta2), 2*pi ) );
-                        else
-                            intensity = rad2deg( abs( theta1 - theta2 ) );
-                        end
+                        intensity = abs( rad2deg(theta1) - rad2deg(theta2) );
                     case 'orientation'
                         intensity = abs( ori1 - ori2 );
                 end
-                q(whichq) = QuestUpdate( q(whichq), log10( intensity ), response );
+                if intensity ~= 0
+                    q(whichq) = QuestUpdate( q(whichq), log10( intensity ), response );
+                end
             end
+            fprintf('Trial %d, intensity %.4f\n',trialnum,intensity);
             
             % add response to data array
-            data = [ data; blocknum trialnum stimparams intensity response rt whichq 10^QuestMean( q(whichq) ), 10^QuestSd( q(whichq) ) ~invalid];
+            data = [ data; blocknum trialnum stimparams intensity response rt whichq 10^QuestMean( q(whichq) ), 10^QuestSd( q(whichq) ) invalid];
             
             % save data array
-            if ~dummymode && ~practice
+            if ~dummymode
                 save( [matdir filesep fileprfx '.mat'], 'data','trialnum','blocknum','q','p');
             end
             
-            % do we have enough data yet?
-            checktrialnumber = zeros(1,p.n.thresholds);
-            for itmp = 1:p.n.thresholds
-                checktrialnumber(itmp) = sum(data(:,13)==itmp & data(:,end)==1 );
-            end
-            
-            % take any other applicable actions
-            if gotoquit || all(checktrialnumber) > p.n.trialsthresh
+            % if quit- or setup-key was pressed, take appropriate action
+            if gotoquit
                 break
             elseif gotosetup && ~dummymode
                 FlushEvents('keyDown');
                 EyelinkDoTrackerSetup(el);
                 KbReleaseWait;
             end
-            
-
             
         end % of trials within block
         
@@ -460,9 +415,8 @@ try
             DrawFormattedText( w, p.text.saving, 'center', 'center', p.color.black);
             Screen('Flip',w);
             
-            
+            % save .edf
             if ~dummymode
-                % save .edf
                 Eyelink('Command', 'set_idle_mode');    WaitSecs(0.5);
                 Eyelink('CloseFile');                   WaitSecs(0.5);
                 status = Eyelink( 'ReceiveFile', [filename '.edf'] );
@@ -470,24 +424,23 @@ try
                     fprintf('ReceiveFile status %d\n', status);
                 end
                 movefile( [pwd filesep filename '.edf'], edfdir )
-                
-                % save .mat
-                save( [matdir filesep fileprfx '.mat'], 'data','trialnum','blocknum','q','p');
             end
             
+            % save .mat
+            save( [matdir filesep fileprfx '.mat'], 'data','trialnum','blocknum','q','p');
             
             % display next run text
-            if ~gotoquit && ~all(checktrialnumber) > p.n.trialsthresh
-                 todrawtext = p.text.nextblock;
+            if ~gotoquit && iblock < p.n.blocks
+                 todrawtext = txt.nextblock;
             elseif gotoquit
                  todrawtext = 'Experiment aborted.';
-            else todrawtext = p.text.theend;
+            else todrawtext = txt.theend;
             end
             DrawFormattedText(w, todrawtext, 'center', 'center', p.color.black);
             Screen('Flip',w);
             
             % wait for response
-            if ~gotoquit && ~all(checktrialnumber) > p.n.trialsthresh
+            if ~gotoquit && iblock < p.n.blocks
                 decided = false;
                 while ~decided
                     [keyIsDown, ~, keyCode] = KbCheck;
@@ -535,7 +488,7 @@ try
     
 catch ME
     
-    %% Try to save everythin' when something goes wrong
+    %% Try to save everythin' whn something goes wrong
     % close textures
     Screen('CloseAll');
     
@@ -548,12 +501,11 @@ catch ME
             fprintf('ReceiveFile status %d\n', status);
         end
         movefile( [pwd filesep filename '.edf'], edfdir )
-        
-        % close .mat
-        save( [matdir filesep fileprfx '.mat'], 'data','trialnum','blocknum','q','p');
     end
     
-
+    % close .mat
+    save( [matdir filesep fileprfx '.mat'], 'data','trialnum','blocknum','q','p');
+    
     % print error message
     warning( [ '\n??? ' ME.message '\n\nError in ==> ' ME.stack(1).name ' at %d\n\n' ],...
                ME.stack(1).line);

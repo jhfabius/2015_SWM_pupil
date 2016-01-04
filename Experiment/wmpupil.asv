@@ -249,7 +249,7 @@ try
     background         = [ zeros( p.scr.wrect(4), p.scr.cx ) ones( p.scr.wrect(4), p.scr.cx ) ] .* p.color.white;
     
     % the next lines can be used to add a BW gradient to the backgroud. We
-    % decided it was be unnecessary for the current experiment...
+    % decided it was be unnecessary for the current experiment.
     % backgroundGradient = repmat( linspace( p.color.black, p.color.white, p.background.gradient*p.scr.pixdeg ), p.scr.wrect(4), 1 );
     % background( :, p.scr.cx-p.background.gradient*p.scr.pixdeg/2:p.scr.cx+p.background.gradient*p.scr.pixdeg/2-1 ) = backgroundGradient;
     
