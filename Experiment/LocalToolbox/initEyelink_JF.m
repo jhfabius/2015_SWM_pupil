@@ -50,7 +50,7 @@ end
 Eyelink('Command','screen_pixel_coords = %ld %ld %ld %ld', 0, 0, wRect(3)-1, wRect(4)-1);
 
 % 2. set calibration type
-Eyelink('Command', 'calibration_type = HV9');
+Eyelink('Command', 'calibration_type = HV5');
 Eyelink('Command', 'generate_default_targets = YES');
 Eyelink('Command', 'enable_automatic_calibration = YES');	% YES default
 Eyelink('Command', 'automatic_calibration_pacing = 1000');	% 1000 ms default
