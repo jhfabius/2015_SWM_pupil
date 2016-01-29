@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from datamatrix import plot as dmplot
-from datamatrix.operations import series
+from datamatrix import series
 from datamatrix.colors.tango import *
 from matplotlib import pyplot as plt
 import eyelinkparser
