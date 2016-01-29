@@ -10,6 +10,8 @@
 
 ## Running the Analysis
 
+Convert the `.edf` files to `.asc` with `edf2asc`, and place the `.asc` files in a subfolder called data.
+
 To run the analysis:
 
 	python analyze.py
