@@ -1,4 +1,4 @@
-function [ w, el, response, rt, abort, gotosetup, invalid ] = runtrial_wmpupil( w, el, tx, p, dummymode, trialnum, condition, stimparams, itrial )
+function [ w, el, response, rt, abort, gotosetup, invalid ] = runtrial_wmpupil( w, el, tx, p, dummymode, trialnum, condition, stimparams, itrial, practice )
 %% Run trials for working memory and pupil experiment
 % Input
 %   - w             windowpointer
@@ -15,8 +15,7 @@ function [ w, el, response, rt, abort, gotosetup, invalid ] = runtrial_wmpupil( 
 %                   4. orientation stimulus 1
 %                   5. theta stimulus 2
 %                   6. orientation stimulus 2
-%                   7. direction of displacement of location/orientation
-%                   8. desired response
+%                   7. desired response
 %
 % Output
 %   - response      logical, correct (1) or incorrect (0), or invalid (-1)
@@ -44,9 +43,9 @@ stimulusBaserect = [ p.scr.cx - p.stim.r / 2 * p.scr.pixdeg ...
 stim1rect        = CenterRectOnPointd( stimulusBaserect, p.scr.cx+x1, p.scr.cy-y1 );
 switch condition
     case 'L'
-        stim2rect        = CenterRectOnPointd( stimulusBaserect, p.scr.cx+x2, p.scr.cy-y2 );
+        stim2rect = CenterRectOnPointd( stimulusBaserect, p.scr.cx+x2, p.scr.cy-y2 );
     case 'O'
-        stim2rect        = CenterRectOnPointd( stimulusBaserect, p.scr.cx, p.scr.cy );
+        stim2rect = CenterRectOnPointd( stimulusBaserect, p.scr.cx, p.scr.cy );
 end
 
 % background color
@@ -57,7 +56,7 @@ end
 
 
 % variable value eyelink msg
-if stimparams(2) == 1
+if stimparams(1) == stimparams(2)
      msg_bgcolor = 0; 
 else msg_bgcolor = 255;
 end
@@ -70,10 +69,8 @@ switch condition
         else
             msg_intensity = rad2deg( abs( diff( stimparams([3 5]) ) ) );
         end
-        msg_condition = 1;
     case 'O'
         msg_intensity = abs( diff( stimparams([4 6]) ) );
-        msg_condition = 0;
 end
 
 
@@ -120,7 +117,7 @@ if ~dummymode
     
     % Eyelink messages
     Eyelink('Message', 'start_trial %d', trialnum);
-    Eyelink('Message', 'var condition %d', msg_condition);
+    Eyelink('Message', 'var condition %s', condition);
     Eyelink('Message', 'var backgroundcolor %d', msg_bgcolor);
     Eyelink('Message', 'var intensity %s', num2str( round( msg_intensity*1000 ) / 1000 ) );
     
@@ -279,12 +276,12 @@ while true
             invalid   = 1;
             break
         elseif ismember(keyName,{'LeftArrow','DownArrow'}) && ...
-               ismember(keyName,{'match_stim','respwin'})
+               ismember(currentphase,{'match_stim','respwin'})
             response  = -1 == stimparams(7);
             rt        = round( (timestamp - start_rt) * 1000 );
             break
         elseif ismember(keyName,{'RightArrow','UpArrow'}) && ...
-               ismember(keyName,{'match_stim','respwin'})
+               ismember(currentphase,{'match_stim','respwin'})
             response  = 1 == stimparams(7);
             rt        = round( (timestamp - start_rt) * 1000 );
             break
@@ -313,5 +310,19 @@ if ~dummymode
     WaitSecs(0.1);
     Eyelink('StopRecording');
     WaitSecs(0.1);
+end
+
+if practice && ~invalid && ~abort && ~gotosetup
+    Screen('DrawTexture', w, tx_tmpbackground,  p.scr.wrect);
+    Screen('DrawTexture', w, tx.backgroundMask, p.scr.wrect);
+    if response == 1
+        Screen('DrawDots',    w, [p.scr.cx;p.scr.cy], p.fix.dOuter * p.scr.pixdeg, p.color.green', [0 0], 1);
+    elseif response == 0
+        Screen('DrawDots',    w, [p.scr.cx;p.scr.cy], p.fix.dOuter * p.scr.pixdeg, p.color.red', [0 0], 1);
+    end
+    Screen('DrawDots',    w, [p.scr.cx;p.scr.cy], p.fix.dInner * p.scr.pixdeg, p.color.grey,  [0 0], 1);
+    
+    Screen('Flip',w);
+    WaitSecs(0.4);
 end
     

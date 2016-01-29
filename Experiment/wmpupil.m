@@ -47,9 +47,9 @@ clear all; close all; clc; sca;
 
 
 
-%%  Initialize experiment
+%% Initialize experiment
 % dummymode (= use mouse instead of eye-tracker)
-dummymode = true;
+dummymode = false;
 
 % folder with some extra helper functions
 addpath([pwd filesep 'LocalToolbox']);
@@ -72,7 +72,7 @@ end
 
 
 %% Subject and session info
-[practice, sessionnumber, initials, conditionfull] = getsubjinfo( subjdir, edfdir, {'location','orientation'} );
+[practice, sessionnumber, initials, conditionfull, bwlayout] = getsubjinfo( subjdir, edfdir, {'location','orientation'} );
 condition = upper( conditionfull(1) );
 fileprfx  = [ initials '_'  condition ];
 
@@ -81,7 +81,9 @@ if sessionnumber > 1
         load( [ matdir filesep initials '_'  condition '.mat' ] );
         fprintf('\nSuccessfully imported data from session %d!\n',sessionnumber-1);
     catch
-        error('Failed to load data from session %d', sessionnumber-1);
+        data     = [];
+        trialnum = 0;
+        blocknum = 0;
     end
 else
     data     = [];
@@ -92,19 +94,8 @@ end
 
 
 %%  Parameters
-% number of trials
-p.n.thresholds    = 2;  % number of thresholds
-p.n.trialsblock   = 16; % should be multiple of factorial block design (see below)
-p.n.trialsthresh  = 48; % should be multiple of number of trials per block
-p.n.blocks        = p.n.thresholds * p.n.trialsthresh / p.n.trialsblock;
-
-% trialblock: factorial design
-p.block.desresp  = [-1 1]; % which response should be given?
-p.block.stimside = [1 2]; % at which side should the stimulus be presented?
-p.block.whichq   = 1:p.n.thresholds; % which quest staircase to use on trial?
-
 % screen
-p.scr.number  = 1; %max(Screen('Screens'));
+p.scr.number  = max(Screen('Screens'));
 p.scr.distscr = 70;              % distance to screen (cm)
 p.scr.sizecm  = [ 50.67 33.89 ]; % width and height of screen (cm)
 jnk           = Screen('Resolution',p.scr.number);
@@ -119,6 +110,24 @@ p.color.grey  = WhiteIndex( p.scr.number ) / 2;
 p.color.red   = [ p.color.white  p.color.black  p.color.black ];
 p.color.green = [ p.color.black  p.color.white  p.color.black ];
 p.color.blue  = [ p.color.black  p.color.black  p.color.white ];
+
+% sound
+p.b.freq       = 440;               % frequency (Hz) in saccade condition   (= A4)
+p.b.samplerate = 44100;             % sample rate
+p.b.duration   = 0.05;              % seconds
+p.b.beep       = MakeBeep(p.b.freq, p.b.duration, p.b.samplerate);
+p.b.beepdur    = ceil(p.b.duration * p.scr.hz); % save the number of frames used during beep
+
+% number of trials
+p.n.thresholds    = 2;  % number of thresholds
+p.n.trialsblock   = 16; % should be multiple of factorial block design (see below)
+p.n.trialsthresh  = 48; % should be multiple of number of trials per block
+p.n.blocks        = p.n.thresholds * p.n.trialsthresh / p.n.trialsblock;
+
+% trialblock: factorial design
+p.block.desresp  = [-1 1]; % which response should be given?
+p.block.stimside = [1 2]; % at which side should the stimulus be presented?
+p.block.whichq   = 1:p.n.thresholds; % which quest staircase to use on trial?
 
 % background
 p.background.rOuter   = 15; % size outer annulus (dva)
@@ -175,10 +184,10 @@ p.maxdiffVWM            = 30;       % max orientation difference VWM (angular de
 p.mindiffSWM            = 0.5;      % min orientation difference SWM (angular degrees)
 p.mindiffVWM            = 0.2;      % min orientation difference VWM (angular degrees)
 
-p.quest.guessSWM        = log10(10); % initial guess SWM threshold (angular degrees in log scale)
-p.quest.priorstdSWM     = log10(7);  % sd of initial guess SWM threshold(angular degrees in log scale)
-p.quest.guessVWM        = log10(15); % initial guess orientation threshold (angular degrees in log scale)
-p.quest.priorstdVWM     = log10(8);  % sd of initial guess orientation threshold(angular degrees in log scale)
+p.quest.guessSWM        = log10(8); % initial guess SWM threshold (angular degrees in log scale)
+p.quest.priorstdSWM     = log10(5);  % sd of initial guess SWM threshold(angular degrees in log scale)
+p.quest.guessVWM        = log10(20); % initial guess orientation threshold (angular degrees in log scale)
+p.quest.priorstdVWM     = log10(12);  % sd of initial guess orientation threshold(angular degrees in log scale)
 p.quest.beta            = 3.5;       % controls the steepness of the psychometric function
 p.quest.delta           = 0.05;      % fraction of trials on which the observer presses blindly
 p.quest.gamma           = 0.5;       % fraction of trials that will generate response 1 when intensity == -inf
@@ -244,11 +253,23 @@ try
     
 
     
+    %% Sound initialization
+        InitializePsychSound;
+        pahandle = PsychPortAudio('Open', [], 1, 1, p.b.samplerate, 2);
+        PsychPortAudio('FillBuffer', pahandle, [p.b.beep; p.b.beep]);
+        PsychPortAudio('Start', pahandle, 1, 0, 1); % play beep once
+        
+        
+        
     %%  Textures: background
     % background
     background         = [ zeros( p.scr.wrect(4), p.scr.cx ) ones( p.scr.wrect(4), p.scr.cx ) ] .* p.color.white;
-    backgroundGradient = repmat( linspace( p.color.black, p.color.white, p.background.gradient*p.scr.pixdeg ), p.scr.wrect(4), 1 );
-    background( :, p.scr.cx-p.background.gradient*p.scr.pixdeg/2:p.scr.cx+p.background.gradient*p.scr.pixdeg/2-1 ) = backgroundGradient;
+    
+    % the next lines can be used to add a BW gradient to the backgroud. We
+    % decided it was be unnecessary for the current experiment...
+    % backgroundGradient = repmat( linspace( p.color.black, p.color.white, p.background.gradient*p.scr.pixdeg ), p.scr.wrect(4), 1 );
+    % background( :, p.scr.cx-p.background.gradient*p.scr.pixdeg/2:p.scr.cx+p.background.gradient*p.scr.pixdeg/2-1 ) = backgroundGradient;
+    
     tx.backgroundBW    = Screen('MakeTexture', w, background);
     tx.backgroundWB    = Screen('MakeTexture', w, fliplr(background));
     
@@ -270,11 +291,7 @@ try
         %% Block parameters
         blockSorted = factorizeblock( p.block, 'sort' ); % factorial block
         blockSorted = repmat( blockSorted, p.n.trialsblock/size(blockSorted,1), 1 ); % repeat up to desirable number of trials per block
-        if iblock == 1 % black-white (1) or white-black (2) layout?
-            blockSorted = [ ones( size(blockSorted,1), 1 ) + round( rand(1) ) blockSorted ] ;
-        else
-            blockSorted = [ repmat( abs(block(1,1)-1)+2, size(blockSorted,1), 1 ) blockSorted ];
-        end
+        blockSorted = [ repmat( bwlayout, size(blockSorted,1), 1 ) blockSorted ]; % black-white (1) or white-black (2) layout?
         rndIdx      = Shuffle( 1:size( blockSorted, 1 ) );
         block       = blockSorted( rndIdx, : );
         
@@ -288,6 +305,9 @@ try
         
         %% Textures: gratings 
         % with random phase and correct background color
+        tx.stim1  = NaN(1,p.n.trialsblock);
+        tx.stim2  = NaN(1,p.n.trialsblock);
+        
         mask      = makeSinMask( p.stim.r*p.scr.pixdeg, p.stim.r*p.scr.pixdeg*p.stim.propmask);
         stimulus1 = NaN( p.stim.r*p.scr.pixdeg*2+1, p.stim.r*p.scr.pixdeg*2+1, p.n.trialsblock );
         stimulus2 = NaN( p.stim.r*p.scr.pixdeg*2+1, p.stim.r*p.scr.pixdeg*2+1, p.n.trialsblock );
@@ -324,10 +344,13 @@ try
         
         %% Eyelink initialization
         if ~dummymode
-            el = EyelinkInitDefaults(w);
-            el = initEyelink_JF(el, p.scr.wrect, p.color.grey, p.color.blue, true, [filename '.edf']);
+            if ~exist('el','var')
+                el = EyelinkInitDefaults(w);
+                el = initEyelink_JF(el, p.scr.wrect, p.color.grey, p.color.blue, true, [filename '.edf']);
+            end
             EyelinkDoTrackerSetup(el);
-            KbReleaseWait;
+            Screen('Flip',w);
+            % KbReleaseWait;
         else
             el = [];
         end
@@ -393,7 +416,8 @@ try
 
             
             % run trial
-            [ w, el, response, rt, gotoquit, gotosetup, invalid ] = runtrial_wmpupil( w, el, tx, p, dummymode, trialnum, condition, stimparams, itrial );
+            [ w, el, response, rt, gotoquit, gotosetup, invalid ] = runtrial_wmpupil( w, el, tx, p, dummymode, trialnum, condition, stimparams, itrial, practice );
+            PsychPortAudio('Start', pahandle, 1, 0, 1); % play beep
             
             % did we do well?
             if invalid % no, repeat trial at end of block
@@ -419,6 +443,7 @@ try
             % add response to data array
             data = [ data; blocknum trialnum stimparams intensity response rt whichq 10^QuestMean( q(whichq) ), 10^QuestSd( q(whichq) ) ~invalid];
             
+            
             % save data array
             if ~dummymode && ~practice
                 save( [matdir filesep fileprfx '.mat'], 'data','trialnum','blocknum','q','p');
@@ -431,11 +456,12 @@ try
             end
             
             % take any other applicable actions
-            if gotoquit || all(checktrialnumber) > p.n.trialsthresh
+            if gotoquit || all(checktrialnumber >= p.n.trialsthresh)
                 break
             elseif gotosetup && ~dummymode
                 FlushEvents('keyDown');
                 EyelinkDoTrackerSetup(el);
+                Screen('Flip',w);
                 KbReleaseWait;
             end
             
@@ -473,7 +499,7 @@ try
             
             
             % display next run text
-            if ~gotoquit && ~all(checktrialnumber) > p.n.trialsthresh
+            if ~gotoquit && ~all(checktrialnumber >= p.n.trialsthresh );
                  todrawtext = p.text.nextblock;
             elseif gotoquit
                  todrawtext = 'Experiment aborted.';
@@ -481,9 +507,10 @@ try
             end
             DrawFormattedText(w, todrawtext, 'center', 'center', p.color.black);
             Screen('Flip',w);
+            FlushEvents('keyDown');
             
             % wait for response
-            if ~gotoquit && ~all(checktrialnumber) > p.n.trialsthresh
+            if ~gotoquit && ~all(checktrialnumber >= p.n.trialsthresh)
                 decided = false;
                 while ~decided
                     [keyIsDown, ~, keyCode] = KbCheck;
@@ -520,12 +547,24 @@ try
         end
         
         % quit experiment if abort-key was pressed
-        if gotoquit;
+        if gotoquit || all(checktrialnumber >= p.n.trialsthresh)
             break;
         end
         
         
     end
+    
+    
+    %% Wrap up
+    if ~dummymode
+        Eyelink('Shutdown');
+    end
+    Screen('CloseAll');
+    PsychPortAudio('Stop', pahandle);
+    PsychPortAudio('Close', pahandle);
+    Priority(0);
+    ShowCursor(w);
+    commandwindow;
     
     
     
@@ -549,19 +588,12 @@ catch ME
         save( [matdir filesep fileprfx '.mat'], 'data','trialnum','blocknum','q','p');
     end
     
-
+    % close audio
+    PsychPortAudio('Stop', pahandle);
+    PsychPortAudio('Close', pahandle);
+    
     % print error message
     warning( [ '\n??? ' ME.message '\n\nError in ==> ' ME.stack(1).name ' at %d\n\n' ],...
                ME.stack(1).line);
     
 end
-
-
-%% Close screen
-if ~dummymode
-    Eyelink('Shutdown');
-end
-Screen('CloseAll');
-Priority(0);
-ShowCursor(w);
-commandwindow;

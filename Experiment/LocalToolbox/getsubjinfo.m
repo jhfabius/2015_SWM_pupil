@@ -1,4 +1,4 @@
-function [practice, sessionnumber, initials, condition] = getsubjinfo( dir_subjinfo, dir_data, conditionnames)
+function [practice, sessionnumber, initials, condition, bwlayout] = getsubjinfo( dir_subjinfo, dir_data, conditionnames)
 % getsubjinfo
 % Function to gather subject information and select which condition to run
 % Input
@@ -30,7 +30,7 @@ end
 
 initials      = upper(char(initials));
 subj.initials = initials;
-subj.filename = [upper(subj.initials) '_info'];
+subj.filename = [ upper(subj.initials) '_info' ];
 subj.session  = zeros( 1, length(conditionnames) );
 
 
@@ -38,6 +38,7 @@ subj.session  = zeros( 1, length(conditionnames) );
 if strcmp(subj.initials,'PRACTICE')
     practice      = true;
     sessionnumber = 1;
+    bwlayout      = 1 + round( rand(1) );
 
 else
     
@@ -74,6 +75,7 @@ else
             subj.age                   = str2double(answers{1});
             subj.sex                   = str2double(answers{2});
             subj.session( icondition ) = 1;
+            subj.bwlayout              = 1 + round( rand(1) );
         else
             try
                 load([dir_subjinfo filesep subj.filename]);
@@ -91,6 +93,7 @@ else
     % set output variables
     practice      = false;
     sessionnumber = subj.session( icondition );
+    bwlayout      = subj.bwlayout;
     
     % save all subject info
     save([dir_subjinfo filesep subj.filename],'subj');
