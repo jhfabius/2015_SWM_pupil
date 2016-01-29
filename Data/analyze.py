@@ -19,9 +19,9 @@ dm.pupil.depth = 3000
 dm.pupil = series.baseline(dm.pupil, dm.ptrace_sample_stim, 0, 100)
 # Create a new plot, and plot both conditions as separate subplots.
 dmplot.new()
-for condition in [0, 1]:
-	plt.subplot(2,1,condition+1)
-	plt.title('Condition %d' % condition)
+for i, condition in enumerate(['L', 'O']):
+	plt.subplot(2,1,i+1)
+	plt.title('Condition %s' % condition)
 	dm_dark = (dm.condition == condition) & (dm.backgroundcolor == 0)
 	dm_bright = (dm.condition == condition) & (dm.backgroundcolor == 255)
 	dmplot.trace(dm_dark.pupil, color=blue[1],
