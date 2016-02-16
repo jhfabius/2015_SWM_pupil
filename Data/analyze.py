@@ -1,6 +1,6 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 from datamatrix import plot as dmplot
 from datamatrix import series
 from datamatrix.colors.tango import *
@@ -10,6 +10,7 @@ import eyelinkparser
 # Use the eyelinkparser to get the data. For this basic analyis, we don't need
 # a custom parser class yet.
 dm = eyelinkparser.parse(cacheid='data')
+
 # Take the pupil trace during wmdelay, and turn it into a blink-reconstructed
 # trace of 3000 ms that is normalized relative to the first 100 ms of the
 # sample_stim trace.
