@@ -28,6 +28,9 @@ from matplotlib import pyplot as plt
 @cached
 def preprocess(dm):
 
+	print('N(total) = %d' % len(dm))
+	dm = dm.valid == 1
+	print('N(valid) = %d' % len(dm))
 	# Extract subject ids from the first two letters of the source-asc basename
 	dm.sid = -1
 	for row in dm:
@@ -67,3 +70,11 @@ def subject_plot(dm):
 
 	for sid, dm_ in ops.split(dm.sid):
 		pupil_plot(dm_, 'pupil-%s' % sid)
+
+def descriptives(dm):
+
+	print('N(subject) = %d' % len(dm.sid.unique))
+	print('N(trial) = %d' % len(dm))
+	for sid, dm_ in ops.split(dm.sid):
+		print('%s: %d trials, accuracy = %.2f' \
+			% (sid, len(dm_), dm_.response.mean))
