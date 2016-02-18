@@ -18,6 +18,7 @@ along with SWM_PUPIL.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import os
+from datamatrix.rbridge import lme4
 from datamatrix import plot as dmplot
 from datamatrix import series, cached
 from datamatrix import operations as ops
@@ -28,9 +29,21 @@ from matplotlib import pyplot as plt
 @cached
 def preprocess(dm):
 
+	# Participant BB had three unfinished blocks, which need to be removed.
+	# These have also been removed from the repository.
+	dm = dm.path != 'data/BB_O03.asc'
+	dm = dm.path != 'data/BB_O04.asc'
+	dm = dm.path != 'data/BB_O09.asc'
+	# Summarize and get only valid trials
 	print('N(total) = %d' % len(dm))
 	dm = dm.valid == 1
 	print('N(valid) = %d' % len(dm))
+	# Check whether all blocks contain exactly 16 valid trials
+	for path, dm_ in ops.split(dm.path):
+		assert(len(dm_) == 16)
+	# Check whether we have exacty two conditions and backgroundcolors
+	assert(len(dm.condition.unique) == 2)
+	assert(len(dm.backgroundcolor.unique) == 2)
 	# Extract subject ids from the first two letters of the source-asc basename
 	dm.sid = -1
 	for row in dm:
@@ -50,7 +63,6 @@ def preprocess(dm):
 def pupil_plot(dm, suffix=''):
 
 	# Create a new plot, and plot both conditions as separate subplots.
-	dmplot.new()
 	for i, condition in enumerate(['L', 'O']):
 		plt.subplot(2,1,i+1)
 		plt.title('Condition %s' % condition)
@@ -62,7 +74,7 @@ def pupil_plot(dm, suffix=''):
 			label='Attend bright (N=%d)' % len(dm_bright))
 		plt.xlabel('Time in retention interval (ms)')
 		plt.ylabel('Pupil size (norm.)')
-		plt.legend(loc='lower left')
+		plt.legend(loc='upper left')
 	dmplot.save('pupil'+suffix)
 
 
@@ -70,6 +82,20 @@ def subject_plot(dm):
 
 	for sid, dm_ in ops.split(dm.sid):
 		pupil_plot(dm_, 'pupil-%s' % sid)
+
+
+def stats_plot(dm):
+
+	model = 'pupil ~ condition * backgroundcolor + (1+condition*backgroundcolor|sid)'
+	lm = lme4.lmer_series(dm, model, winlen=10, cacheid='lmer')
+	for i in range(1, 4):
+		plt.plot(lm.t[i], label=lm.effect[i])
+	plt.axhline(0, linestyle=':', color='black')
+	plt.axhline(-2, linestyle=':', color='black')
+	plt.axhline(2, linestyle=':', color='black')
+	plt.legend()
+	dmplot.save('t-values')
+
 
 def descriptives(dm):
 

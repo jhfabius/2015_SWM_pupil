@@ -22,6 +22,24 @@ from eyelinkparser import EyeLinkParser, sample
 
 class CustomParser(EyeLinkParser):
 
+	remember = {}
+
+	def is_start_trial(self, l):
+
+		# Capture variable messages that are listed just before or after the
+		# start/ end trial messages
+		# MSG	1745116 var condition L
+		if len(l) == 5 and l[0] == u'MSG' and l[2] == u'var':
+			var = l[3]
+			val = l[4]
+			if var == 'valid':
+				warnings.warn(
+					'%s = %s was set after end_trial message' % (var, val))
+				self.filedm.valid[-1] = val
+			else:
+				self.remember[l[3]] = l[4]
+		return EyeLinkParser.is_start_trial(self, l)
+
 	def parse_phase(self, l):
 
 		# Only store the sample_stim and wmdelay phases, and downsample the
@@ -31,6 +49,14 @@ class CustomParser(EyeLinkParser):
 			s = sample(l)
 			if s is None or s.t % 10 == 0:
 				EyeLinkParser.parse_phase(self, l)
+
+	def on_start_trial(self):
+
+		for var, val in self.remember.items():
+			warnings.warn(
+				'%s = %s was set before start_trial message' % (var, val))
+			self.trialdm[var] = val
+		self.remember = {}
 
 	def end_phase(self):
 
